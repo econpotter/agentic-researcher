@@ -46,6 +46,65 @@ def test_anchor_add_remove(tmp_path):
     assert load_front(Path(fd) / "t.toml").anchor_paper_ids == []
 
 
+def _write_cfg(tmp_path, expansion):
+    p = tmp_path / "config.yaml"
+    p.write_text(f"expansion: {expansion}\n")
+    return str(p)
+
+
+class WalkStub:
+    def search_library(self, query, k):
+        return ["L1", "L2"]
+
+    def citation_neighbors(self, pid):
+        return []
+
+    def relevance(self, anchors, texts):
+        return []
+
+    def store_paper(self, meta):
+        return {"id": meta["id"]}
+
+
+def test_create_from_library_seeds_anchors(tmp_path):
+    fd = str(tmp_path)
+    rc = main(
+        ["--fronts-dir", fd, "front", "create-from-library", "Water", "--query", "water rights"],
+        client=WalkStub(),
+        config_path=_write_cfg(tmp_path, "none"),
+    )
+    assert rc == 0
+    f = load_front(Path(fd) / "water.toml")
+    assert f.anchor_paper_ids == ["L1", "L2"]
+    assert f.acquired_paper_ids == ["L1", "L2"]
+
+
+def test_walk_noop_when_expansion_off(tmp_path):
+    fd = str(tmp_path)
+    main(["--fronts-dir", fd, "front", "create", "T", "--term", "a"])
+    rc = main(
+        ["--fronts-dir", fd, "walk", "T"],
+        client=WalkStub(),
+        config_path=_write_cfg(tmp_path, "none"),
+    )
+    assert rc == 0  # no-op, expansion off
+
+
+def test_walk_runs_when_expansion_on(tmp_path):
+    fd = str(tmp_path)
+    main(
+        ["--fronts-dir", fd, "front", "create-from-library", "T", "--query", "q"],
+        client=WalkStub(),
+        config_path=_write_cfg(tmp_path, "citation"),
+    )
+    rc = main(
+        ["--fronts-dir", fd, "walk", "T"],
+        client=WalkStub(),
+        config_path=_write_cfg(tmp_path, "citation"),
+    )
+    assert rc == 0  # anchors seeded, walk runs (empty neighbors -> added 0)
+
+
 def test_harvest_uses_injected_client_and_saves(tmp_path):
     fd = str(tmp_path)
     main(["--fronts-dir", fd, "front", "create", "T", "--term", "a"])
