@@ -14,6 +14,7 @@ added by the openbrain "external-driver primitives" issue and a host redeploy):
 from __future__ import annotations
 
 import asyncio
+import json
 
 
 class Openbrain:
@@ -28,7 +29,15 @@ class Openbrain:
             client = Client(self._url, auth=self._token)
             async with client:
                 result = await client.call_tool(tool, args)
-                return result.data
+                # openbrain tools vary: some return structured data, others a JSON
+                # string (json.dumps). Normalize to the parsed object. Falls back to
+                # the first text-content block when .data is empty.
+                data = result.data
+                if data is None and result.content:
+                    data = getattr(result.content[0], "text", None)
+                if isinstance(data, str):
+                    data = json.loads(data)
+                return data
 
         return asyncio.run(go())
 
