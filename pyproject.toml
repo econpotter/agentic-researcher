@@ -3,7 +3,7 @@ name = "agentic-researcher"
 version = "0.1.0"
 description = "Automated economics-research driver over openbrain"
 requires-python = ">=3.11"
-dependencies = ["tomli-w>=1.0"]
+dependencies = ["tomli-w>=1.0", "pyyaml>=6.0"]
 
 [project.scripts]
 researcher = "researcher.cli:main"

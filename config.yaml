@@ -1,0 +1,7 @@
+# Acquisition/expansion policy. See docs/superpowers/specs/2026-06-28-agentic-researcher-acquisition-design.md §4.
+expansion: none          # none = C harvest only; citation = enable the A walk
+relevance_radius: 0.40   # min cosine to keep a walked candidate (first knob to tune)
+max_hops: 2              # citation depth from an anchored paper
+per_run_budget: 200      # max papers added per walk run (hard cost ceiling)
+anchor_bootstrap_k: 10   # initial anchor set size when declaring a front
+openbrain_cmd: ["openbrain-ingest"]
