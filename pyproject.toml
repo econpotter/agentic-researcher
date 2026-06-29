@@ -5,8 +5,8 @@ description = "Automated economics-research driver over openbrain"
 requires-python = ">=3.11"
 dependencies = []
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "pytest>=8.0",
