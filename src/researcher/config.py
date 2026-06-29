@@ -1,33 +1,42 @@
-"""Driver config: the expansion flag + gate tunables (spec §4 defaults)."""
+"""Driver config: the citation-expansion switch, its tunables, and the openbrain
+MCP endpoint. Defaults follow the acquisition design spec §4."""
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 _DEFAULTS: dict = {
-    "expansion": "none",
+    "citation_expansion": False,
     "relevance_radius": 0.40,
-    "max_hops": 2,
-    "per_run_budget": 200,
-    "anchor_bootstrap_k": 10,
-    "openbrain_cmd": ["openbrain-ingest"],
+    "max_citation_distance": 2,
+    "max_papers_per_run": 200,
+    "core_bootstrap_count": 10,
+    "openbrain_mcp_url": "http://localhost:8000/mcp",
 }
+
+#: env var holding the openbrain MCP bearer token (kept out of the config file).
+TOKEN_ENV = "OPENBRAIN_MCP_TOKEN"
 
 
 @dataclass
 class Config:
-    expansion: str
+    citation_expansion: bool
     relevance_radius: float
-    max_hops: int
-    per_run_budget: int
-    anchor_bootstrap_k: int
-    openbrain_cmd: list[str]
+    max_citation_distance: int
+    max_papers_per_run: int
+    core_bootstrap_count: int
+    openbrain_mcp_url: str
+    openbrain_mcp_token: str | None
 
 
 def load_config(path: Path) -> Config:
     raw = yaml.safe_load(Path(path).read_text()) or {}
     merged = {**_DEFAULTS, **raw}
-    return Config(**{k: merged[k] for k in _DEFAULTS})
+    return Config(
+        **{k: merged[k] for k in _DEFAULTS},
+        openbrain_mcp_token=os.environ.get(TOKEN_ENV) or None,
+    )

@@ -185,7 +185,7 @@ from __future__ import annotations
 
 import re
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 import tomli_w
@@ -211,29 +211,19 @@ def front_path(fronts_dir: Path, label: str) -> Path:
 
 
 def load_front(path: Path) -> Front:
+    # Derive from the dataclass schema: keep only known fields (robust to stray
+    # toml keys); the dataclass fills defaults for any absent ones.
     data = tomllib.loads(Path(path).read_text())
-    return Front(
-        label=data["label"],
-        terms=list(data.get("terms", [])),
-        anchor_paper_ids=list(data.get("anchor_paper_ids", [])),
-        acquired_paper_ids=list(data.get("acquired_paper_ids", [])),
-        visited=list(data.get("visited", [])),
-        hop_depth=dict(data.get("hop_depth", {})),
-    )
+    known = {f.name for f in fields(Front)}
+    return Front(**{k: v for k, v in data.items() if k in known})
 
 
 def save_front(front: Front, fronts_dir: Path) -> Path:
+    # asdict() derives the payload from the dataclass — the schema is defined
+    # once (the Front fields), not restated here.
     path = front_path(fronts_dir, front.label)
-    payload = {
-        "label": front.label,
-        "terms": front.terms,
-        "anchor_paper_ids": front.anchor_paper_ids,
-        "acquired_paper_ids": front.acquired_paper_ids,
-        "visited": front.visited,
-        "hop_depth": front.hop_depth,
-    }
     Path(fronts_dir).mkdir(parents=True, exist_ok=True)
-    path.write_text(tomli_w.dumps(payload))
+    path.write_text(tomli_w.dumps(asdict(front)))
     return path
 
 

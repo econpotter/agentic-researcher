@@ -1,118 +1,120 @@
 from pathlib import Path
 
 from researcher.cli import main
-from researcher.fronts import load_front, save_front
+from researcher.topics import load_topic, save_topic
 
 
-def test_front_create_then_term_add(tmp_path):
-    fd = str(tmp_path)
+def test_topic_create_then_term_add(tmp_path):
+    td = str(tmp_path)
     assert (
-        main(["--fronts-dir", fd, "front", "create", "Water Rights", "--term", "water rights"])
+        main(["--topics-dir", td, "topic", "create", "Water Rights", "--term", "water rights"])
         == 0
     )
-    f = load_front(Path(fd) / "water-rights.toml")
-    assert f.terms == ["water rights"]
-    assert main(["--fronts-dir", fd, "term", "add", "Water Rights", "prior appropriation"]) == 0
-    assert load_front(Path(fd) / "water-rights.toml").terms == [
+    t = load_topic(Path(td) / "water-rights.toml")
+    assert t.search_terms == ["water rights"]
+    assert main(["--topics-dir", td, "term", "add", "Water Rights", "prior appropriation"]) == 0
+    assert load_topic(Path(td) / "water-rights.toml").search_terms == [
         "water rights",
         "prior appropriation",
     ]
 
 
 def test_term_remove(tmp_path):
-    fd = str(tmp_path)
-    main(["--fronts-dir", fd, "front", "create", "T", "--term", "a", "--term", "b"])
-    assert main(["--fronts-dir", fd, "term", "remove", "T", "a"]) == 0
-    assert load_front(Path(fd) / "t.toml").terms == ["b"]
+    td = str(tmp_path)
+    main(["--topics-dir", td, "topic", "create", "T", "--term", "a", "--term", "b"])
+    assert main(["--topics-dir", td, "term", "remove", "T", "a"]) == 0
+    assert load_topic(Path(td) / "t.toml").search_terms == ["b"]
 
 
-def test_anchor_promote(tmp_path):
-    fd = str(tmp_path)
-    main(["--fronts-dir", fd, "front", "create", "T", "--term", "a"])
-    f = load_front(Path(fd) / "t.toml")
-    f.acquired_paper_ids = ["W9"]
-    save_front(f, Path(fd))
-    assert main(["--fronts-dir", fd, "anchor", "promote", "T", "W9"]) == 0
-    g = load_front(Path(fd) / "t.toml")
-    assert g.anchor_paper_ids == ["W9"] and g.acquired_paper_ids == []
+def test_core_promote(tmp_path):
+    td = str(tmp_path)
+    main(["--topics-dir", td, "topic", "create", "T", "--term", "a"])
+    t = load_topic(Path(td) / "t.toml")
+    t.collected_paper_ids = ["W9"]
+    save_topic(t, Path(td))
+    assert main(["--topics-dir", td, "core", "promote", "T", "W9"]) == 0
+    g = load_topic(Path(td) / "t.toml")
+    assert g.core_paper_ids == ["W9"] and g.collected_paper_ids == []
 
 
-def test_anchor_add_remove(tmp_path):
-    fd = str(tmp_path)
-    main(["--fronts-dir", fd, "front", "create", "T", "--term", "a"])
-    main(["--fronts-dir", fd, "anchor", "add", "T", "W1"])
-    assert load_front(Path(fd) / "t.toml").anchor_paper_ids == ["W1"]
-    main(["--fronts-dir", fd, "anchor", "remove", "T", "W1"])
-    assert load_front(Path(fd) / "t.toml").anchor_paper_ids == []
+def test_core_add_remove(tmp_path):
+    td = str(tmp_path)
+    main(["--topics-dir", td, "topic", "create", "T", "--term", "a"])
+    main(["--topics-dir", td, "core", "add", "T", "W1"])
+    assert load_topic(Path(td) / "t.toml").core_paper_ids == ["W1"]
+    main(["--topics-dir", td, "core", "remove", "T", "W1"])
+    assert load_topic(Path(td) / "t.toml").core_paper_ids == []
 
 
-def _write_cfg(tmp_path, expansion):
+def _write_cfg(tmp_path, expansion: bool):
     p = tmp_path / "config.yaml"
-    p.write_text(f"expansion: {expansion}\n")
+    p.write_text(f"citation_expansion: {str(expansion).lower()}\n")
     return str(p)
 
 
-class WalkStub:
-    def search_library(self, query, k):
+class StubOpenbrain:
+    def acquire(self, query, *, since=None, limit=50):
+        return {"stored": 2, "stored_ids": ["W1", "W2"]}
+
+    def search_library(self, query, limit):
         return ["L1", "L2"]
 
-    def citation_neighbors(self, pid):
+    def get_citations(self, paper_id):
         return []
 
-    def relevance(self, anchors, texts):
+    def score_relevance(self, core_paper_ids, texts):
         return []
 
-    def store_paper(self, meta):
-        return {"id": meta["id"]}
+    def store_paper(self, paper):
+        return {"id": paper["id"]}
 
 
-def test_create_from_library_seeds_anchors(tmp_path):
-    fd = str(tmp_path)
+def test_collect_uses_injected_openbrain_and_saves(tmp_path):
+    td = str(tmp_path)
+    main(["--topics-dir", td, "topic", "create", "T", "--term", "a"])
     rc = main(
-        ["--fronts-dir", fd, "front", "create-from-library", "Water", "--query", "water rights"],
-        client=WalkStub(),
-        config_path=_write_cfg(tmp_path, "none"),
+        ["--topics-dir", td, "collect", "T"],
+        openbrain=StubOpenbrain(),
+        config_path=_write_cfg(tmp_path, False),
     )
     assert rc == 0
-    f = load_front(Path(fd) / "water.toml")
-    assert f.anchor_paper_ids == ["L1", "L2"]
-    assert f.acquired_paper_ids == ["L1", "L2"]
+    assert load_topic(Path(td) / "t.toml").collected_paper_ids == ["W1", "W2"]
 
 
-def test_walk_noop_when_expansion_off(tmp_path):
-    fd = str(tmp_path)
-    main(["--fronts-dir", fd, "front", "create", "T", "--term", "a"])
+def test_create_from_library_seeds_core(tmp_path):
+    td = str(tmp_path)
     rc = main(
-        ["--fronts-dir", fd, "walk", "T"],
-        client=WalkStub(),
-        config_path=_write_cfg(tmp_path, "none"),
+        ["--topics-dir", td, "topic", "create-from-library", "Water", "--query", "water rights"],
+        openbrain=StubOpenbrain(),
+        config_path=_write_cfg(tmp_path, False),
+    )
+    assert rc == 0
+    t = load_topic(Path(td) / "water.toml")
+    assert t.core_paper_ids == ["L1", "L2"]
+    assert t.collected_paper_ids == ["L1", "L2"]
+
+
+def test_expand_noop_when_off(tmp_path):
+    td = str(tmp_path)
+    main(["--topics-dir", td, "topic", "create", "T", "--term", "a"])
+    rc = main(
+        ["--topics-dir", td, "expand", "T"],
+        openbrain=StubOpenbrain(),
+        config_path=_write_cfg(tmp_path, False),
     )
     assert rc == 0  # no-op, expansion off
 
 
-def test_walk_runs_when_expansion_on(tmp_path):
-    fd = str(tmp_path)
+def test_expand_runs_when_on(tmp_path):
+    td = str(tmp_path)
     main(
-        ["--fronts-dir", fd, "front", "create-from-library", "T", "--query", "q"],
-        client=WalkStub(),
-        config_path=_write_cfg(tmp_path, "citation"),
+        ["--topics-dir", td, "topic", "create-from-library", "T", "--query", "q"],
+        openbrain=StubOpenbrain(),
+        config_path=_write_cfg(tmp_path, True),
     )
     rc = main(
-        ["--fronts-dir", fd, "walk", "T"],
-        client=WalkStub(),
-        config_path=_write_cfg(tmp_path, "citation"),
+        ["--topics-dir", td, "expand", "T"],
+        openbrain=StubOpenbrain(),
+        config_path=_write_cfg(tmp_path, True),
     )
-    assert rc == 0  # anchors seeded, walk runs (empty neighbors -> added 0)
-
-
-def test_harvest_uses_injected_client_and_saves(tmp_path):
-    fd = str(tmp_path)
-    main(["--fronts-dir", fd, "front", "create", "T", "--term", "a"])
-
-    class StubClient:
-        def acquire(self, query, *, since=None, limit=50, venues=None, dry_run=False):
-            return {"stored": 2, "stored_ids": ["W1", "W2"]}
-
-    rc = main(["--fronts-dir", fd, "harvest", "T"], client=StubClient())
-    assert rc == 0
-    assert load_front(Path(fd) / "t.toml").acquired_paper_ids == ["W1", "W2"]
+    assert rc == 0  # core seeded, expand runs (empty citations -> added 0)

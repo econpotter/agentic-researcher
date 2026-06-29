@@ -1,135 +1,150 @@
-"""`researcher` CLI — sugar over the git-tracked fronts/ toml files."""
+"""`researcher` CLI — sugar over the git-tracked topics/ toml files.
+
+  researcher topic create <name> [--term T ...]
+  researcher topic create-from-library <name> --query Q
+  researcher topic list | show <name>
+  researcher term add|remove <name> <term>
+  researcher core add|remove|promote <name> <paper_id>
+  researcher collect <name> [--since N] [--limit N]
+  researcher expand <name>
+"""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from . import fronts as F
+from . import topics as T
+from .collect import collect_for_topic
 from .config import load_config
-from .harvest import harvest_front
-from .openbrain_client import OpenbrainClient
-from .walk import walk_front
+from .expand import expand_by_citations
+from .openbrain import Openbrain
 
 
-def _load(fronts_dir: str, label: str) -> tuple[F.Front, Path]:
-    p = F.front_path(Path(fronts_dir), label)
-    return F.load_front(p), Path(fronts_dir)
+def _load(topics_dir: str, name: str) -> tuple[T.Topic, Path]:
+    return T.load_topic(T.topic_path(Path(topics_dir), name)), Path(topics_dir)
+
+
+def _connect(cfg) -> Openbrain:
+    return Openbrain(cfg.openbrain_mcp_url, token=cfg.openbrain_mcp_token)
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="researcher")
-    parser.add_argument("--fronts-dir", default="fronts")
+    parser.add_argument("--topics-dir", default="topics")
     parser.add_argument("--config-path", default="config.yaml")
     sub = parser.add_subparsers(dest="group", required=True)
 
-    p_front = sub.add_parser("front")
-    fsub = p_front.add_subparsers(dest="action", required=True)
-    pc = fsub.add_parser("create")
-    pc.add_argument("label")
+    p_topic = sub.add_parser("topic")
+    tsub = p_topic.add_subparsers(dest="action", required=True)
+    pc = tsub.add_parser("create")
+    pc.add_argument("name")
     pc.add_argument("--term", action="append", default=[])
-    pcl = fsub.add_parser("create-from-library")
-    pcl.add_argument("label")
+    pcl = tsub.add_parser("create-from-library")
+    pcl.add_argument("name")
     pcl.add_argument("--query", required=True)
-    fsub.add_parser("list")
-    ps = fsub.add_parser("show")
-    ps.add_argument("label")
+    tsub.add_parser("list")
+    ps = tsub.add_parser("show")
+    ps.add_argument("name")
 
     p_term = sub.add_parser("term")
-    tsub = p_term.add_subparsers(dest="action", required=True)
+    term_sub = p_term.add_subparsers(dest="action", required=True)
     for act in ("add", "remove"):
-        q = tsub.add_parser(act)
-        q.add_argument("label")
+        q = term_sub.add_parser(act)
+        q.add_argument("name")
         q.add_argument("term")
 
-    p_anchor = sub.add_parser("anchor")
-    asub = p_anchor.add_subparsers(dest="action", required=True)
+    p_core = sub.add_parser("core")
+    core_sub = p_core.add_subparsers(dest="action", required=True)
     for act in ("add", "remove", "promote"):
-        q = asub.add_parser(act)
-        q.add_argument("label")
-        q.add_argument("pid")
+        q = core_sub.add_parser(act)
+        q.add_argument("name")
+        q.add_argument("paper_id")
 
-    p_harvest = sub.add_parser("harvest")
-    p_harvest.add_argument("label")
-    p_harvest.add_argument("--since", type=int, default=None)
-    p_harvest.add_argument("--limit", type=int, default=50)
+    p_collect = sub.add_parser("collect")
+    p_collect.add_argument("name")
+    p_collect.add_argument("--since", type=int, default=None)
+    p_collect.add_argument("--limit", type=int, default=50)
 
-    p_walk = sub.add_parser("walk")
-    p_walk.add_argument("label")
+    p_expand = sub.add_parser("expand")
+    p_expand.add_argument("name")
     return parser
 
 
 def main(
     argv: list[str] | None = None,
-    client: OpenbrainClient | None = None,
+    openbrain: Openbrain | None = None,
     config_path: str | None = None,
 ) -> int:
     args = _build_parser().parse_args(argv)
-    fd = args.fronts_dir
+    td = args.topics_dir
     cfg_path = config_path or args.config_path
 
-    if args.group == "front":
+    if args.group == "topic":
         if args.action == "create":
-            F.create_front(Path(fd), args.label, args.term)
+            T.create_topic(Path(td), args.name, args.term)
         elif args.action == "create-from-library":
             cfg = load_config(Path(cfg_path))
-            ob = client or OpenbrainClient(cmd=cfg.openbrain_cmd)
-            ids = ob.search_library(args.query, cfg.anchor_bootstrap_k)
-            f = F.Front(
-                label=args.label,
-                anchor_paper_ids=list(ids),
-                acquired_paper_ids=list(ids),
+            ob = openbrain or _connect(cfg)
+            ids = ob.search_library(args.query, cfg.core_bootstrap_count)
+            topic = T.Topic(
+                name=args.name,
+                core_paper_ids=list(ids),
+                collected_paper_ids=list(ids),
             )
-            F.save_front(f, Path(fd))
+            T.save_topic(topic, Path(td))
         elif args.action == "list":
-            for p in sorted(Path(fd).glob("*.toml")):
-                print(F.load_front(p).label)
+            for p in sorted(Path(td).glob("*.toml")):
+                print(T.load_topic(p).name)
         elif args.action == "show":
-            f, _ = _load(fd, args.label)
+            topic, _ = _load(td, args.name)
             print(
-                f"{f.label}\n  terms: {f.terms}\n  anchors: {f.anchor_paper_ids}"
-                f"\n  acquired: {len(f.acquired_paper_ids)}"
+                f"{topic.name}\n  search_terms: {topic.search_terms}"
+                f"\n  core_papers: {topic.core_paper_ids}"
+                f"\n  collected: {len(topic.collected_paper_ids)}"
             )
         return 0
 
     if args.group == "term":
-        f, d = _load(fd, args.label)
-        (F.add_term if args.action == "add" else F.remove_term)(f, args.term)
-        F.save_front(f, d)
+        topic, d = _load(td, args.name)
+        (T.add_search_term if args.action == "add" else T.remove_search_term)(topic, args.term)
+        T.save_topic(topic, d)
         return 0
 
-    if args.group == "anchor":
-        f, d = _load(fd, args.label)
-        {"add": F.add_anchor, "remove": F.remove_anchor, "promote": F.promote}[args.action](
-            f, args.pid
-        )
-        F.save_front(f, d)
+    if args.group == "core":
+        topic, d = _load(td, args.name)
+        {
+            "add": T.add_core_paper,
+            "remove": T.remove_core_paper,
+            "promote": T.promote_to_core,
+        }[args.action](topic, args.paper_id)
+        T.save_topic(topic, d)
         return 0
 
-    if args.group == "harvest":
-        f, d = _load(fd, args.label)
-        summary = harvest_front(
-            f, client or OpenbrainClient(), since=args.since, limit=args.limit
+    if args.group == "collect":
+        cfg = load_config(Path(cfg_path))
+        topic, d = _load(td, args.name)
+        summary = collect_for_topic(
+            topic, openbrain or _connect(cfg), since=args.since, limit=args.limit
         )
-        F.save_front(f, d)
+        T.save_topic(topic, d)
         print(summary)
         return 0
 
-    if args.group == "walk":
+    if args.group == "expand":
         cfg = load_config(Path(cfg_path))
-        if cfg.expansion != "citation":
-            print("expansion disabled (set expansion: citation in config to enable the walk)")
+        if not cfg.citation_expansion:
+            print("citation_expansion is off — set citation_expansion: true in config to enable")
             return 0
-        f, d = _load(fd, args.label)
-        ob = client or OpenbrainClient(cmd=cfg.openbrain_cmd)
-        summary = walk_front(
-            f,
-            ob,
+        topic, d = _load(td, args.name)
+        summary = expand_by_citations(
+            topic,
+            openbrain or _connect(cfg),
             radius=cfg.relevance_radius,
-            max_hops=cfg.max_hops,
-            per_run_budget=cfg.per_run_budget,
+            max_citation_distance=cfg.max_citation_distance,
+            max_papers_per_run=cfg.max_papers_per_run,
         )
-        F.save_front(f, d)
+        T.save_topic(topic, d)
         print(summary)
         return 0
 

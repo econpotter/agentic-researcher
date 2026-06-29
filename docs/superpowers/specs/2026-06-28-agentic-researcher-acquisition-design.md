@@ -1,10 +1,41 @@
 # Agentic Researcher — Acquisition & Expansion Design
 
 Date: 2026-06-28
-Status: design approved, pre-implementation
+Status: design approved; revised 2026-06-29 (see Revision below)
 Scope: whole-loop framing (C) + buildable acquisition/expansion engine (A). The
 generative layer (B: synthesis, gap analysis, ideation) is framed here but specced
 and built as a later sub-project.
+
+## 0. Revision 2026-06-29 — transport + naming (authoritative)
+
+Two corrections after the first build, locked:
+
+1. **Transport = hosted openbrain over its MCP tunnel.** The openbrain checkout on this
+   machine is dev-only and does not run; the live openbrain is on another host, reached
+   as a **FastMCP HTTP server over an SSH tunnel**. So agentic-researcher talks to it as a
+   **deterministic Python FastMCP *client*** (endpoint URL + access token from config) —
+   NOT via a locally-installed `openbrain-ingest` CLI (dropped) and NOT by importing the
+   local repo. The expansion primitives must therefore be **openbrain MCP tools**
+   (registered in `openbrain/tools/*.py`), not CLI commands; the host is redeployed once.
+   Acquisition stays deterministic — a Python client calling fixed tools, no LLM in the loop.
+
+2. **Plain names** replace the original jargon throughout code, CLI, and docs:
+
+   | original | name in use |
+   |----------|-------------|
+   | Front / `fronts/` | **Topic** / `topics/` |
+   | label | name |
+   | terms | search_terms |
+   | anchor_paper_ids | **core_paper_ids** (papers that define the topic) |
+   | acquired_paper_ids | collected_paper_ids |
+   | visited | expanded_paper_ids |
+   | hop_depth | citation_distance |
+   | harvest / walk | **collect** / **expand** |
+   | gate.keep | relevance.is_relevant |
+   | anchor add/remove/promote | core add/remove/promote |
+   | openbrain store_one / relevance / citation_neighbors | store_paper / score_relevance / get_citations (MCP tools) |
+
+   Sections below use the original terms; the mapping above governs the implementation.
 
 ## 1. Purpose
 
