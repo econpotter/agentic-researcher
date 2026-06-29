@@ -18,15 +18,18 @@ import json
 
 
 class Openbrain:
-    def __init__(self, mcp_url: str, token: str | None = None) -> None:
+    def __init__(
+        self, mcp_url: str, token: str | None = None, ca_cert: str | None = None
+    ) -> None:
         self._url = mcp_url
         self._token = token
+        self._ca_cert = ca_cert
 
     def _call(self, tool: str, args: dict) -> object:
         async def go() -> object:
             from fastmcp import Client  # imported lazily so tests need no live server
 
-            client = Client(self._url, auth=self._token)
+            client = Client(self._url, auth=self._token, verify=self._ca_cert or True)
             async with client:
                 result = await client.call_tool(tool, args)
                 # openbrain tools vary: some return structured data, others a JSON

@@ -15,6 +15,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "tomli-w" },
 ]
@@ -29,6 +30,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.0" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "tomli-w", specifier = ">=1.0" },
 ]

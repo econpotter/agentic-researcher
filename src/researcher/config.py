@@ -16,6 +16,7 @@ _DEFAULTS: dict = {
     "max_papers_per_run": 200,
     "core_bootstrap_count": 10,
     "openbrain_mcp_url": "http://localhost:8000/mcp",
+    "openbrain_ca_cert": None,  # path to a CA cert (e.g. Caddy) if the MCP uses self-signed TLS
 }
 
 #: env var holding the openbrain MCP bearer token (kept out of the config file).
@@ -30,6 +31,7 @@ class Config:
     max_papers_per_run: int
     core_bootstrap_count: int
     openbrain_mcp_url: str
+    openbrain_ca_cert: str | None
     openbrain_mcp_token: str | None
 
 

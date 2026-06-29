@@ -26,7 +26,9 @@ def _load(topics_dir: str, name: str) -> tuple[T.Topic, Path]:
 
 
 def _connect(cfg) -> Openbrain:
-    return Openbrain(cfg.openbrain_mcp_url, token=cfg.openbrain_mcp_token)
+    return Openbrain(
+        cfg.openbrain_mcp_url, token=cfg.openbrain_mcp_token, ca_cert=cfg.openbrain_ca_cert
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -76,6 +78,9 @@ def main(
     openbrain: Openbrain | None = None,
     config_path: str | None = None,
 ) -> int:
+    from dotenv import load_dotenv
+
+    load_dotenv()  # pull OPENBRAIN_MCP_TOKEN from a local .env if present
     args = _build_parser().parse_args(argv)
     td = args.topics_dir
     cfg_path = config_path or args.config_path

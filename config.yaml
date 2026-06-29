@@ -8,5 +8,6 @@ max_papers_per_run: 200          # hard ceiling on papers added per expand run
 core_bootstrap_count: 10         # core papers seeded when creating a topic from the library
 
 # Hosted openbrain, reached over the SSH tunnel (the local checkout is dev-only).
-openbrain_mcp_url: "http://localhost:8000/mcp"   # <-- set to your tunneled MCP endpoint
+openbrain_mcp_url: "https://rhythm.herknet:8443/mcp"   # <-- set to your tunneled MCP endpoint
+openbrain_ca_cert: "/home/potterzot/caddy-rhythm.crt"  # CA cert if MCP uses self-signed TLS (else null)
 # bearer token is read from the OPENBRAIN_MCP_TOKEN environment variable, not this file
