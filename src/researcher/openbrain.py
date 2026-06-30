@@ -6,9 +6,9 @@ is the single seam between the deterministic driver and openbrain; unit tests in
 a stand-in with the same methods, so the live transport is exercised only in an
 integration smoke against the deployed server.
 
-Requires these openbrain MCP tools (acquire/search_library exist today; the rest are
+Requires these openbrain MCP tools (acquire/find_papers exist today; the rest are
 added by the openbrain "external-driver primitives" issue and a host redeploy):
-  acquire, get_citations, score_relevance, store_paper, search_library
+  acquire, get_citations, score_relevance, store_paper, find_papers
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ class Openbrain:
         assert isinstance(result, dict)
         return result
 
-    def search_library(self, query: str, limit: int) -> list[str]:
-        result = self._call("search_library", {"query": query, "limit": limit})
+    def find_papers(self, text: str, limit: int) -> list[str]:
+        result = self._call("find_papers", {"text": text, "limit": limit})
         assert isinstance(result, dict)
         return [str(x) for x in result["ids"]]

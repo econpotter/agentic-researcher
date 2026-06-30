@@ -91,7 +91,7 @@ def main(
         elif args.action == "create-from-library":
             cfg = load_config(Path(cfg_path))
             ob = openbrain or _connect(cfg)
-            ids = ob.search_library(args.query, cfg.core_bootstrap_count)
+            ids = ob.find_papers(args.query, cfg.core_bootstrap_count)
             topic = T.Topic(
                 name=args.name,
                 core_paper_ids=list(ids),

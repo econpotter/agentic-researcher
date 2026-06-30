@@ -56,7 +56,7 @@ class StubOpenbrain:
     def acquire(self, query, *, since=None, limit=50):
         return {"stored": 2, "stored_ids": ["W1", "W2"]}
 
-    def search_library(self, query, limit):
+    def find_papers(self, text, limit):
         return ["L1", "L2"]
 
     def get_citations(self, paper_id):
