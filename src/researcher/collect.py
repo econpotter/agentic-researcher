@@ -22,7 +22,7 @@ def collect_for_topic(topic: Topic, openbrain: Openbrain, *, radius: float) -> d
 
     seen = set(topic.collected_paper_ids)
     per_term: dict[str, int] = {}
-    new_ids: list[str] = []
+    new_papers: list[dict] = []
     for term in topic.search_terms:
         candidates = openbrain.fetch_candidates(term)
         texts = [f"{c.get('title') or ''} {c.get('abstract') or ''}".strip() for c in candidates]
@@ -37,5 +37,5 @@ def collect_for_topic(topic: Topic, openbrain: Openbrain, *, radius: float) -> d
             if paper_id not in seen:
                 seen.add(paper_id)
                 topic.collected_paper_ids.append(paper_id)
-                new_ids.append(paper_id)
-    return {"per_term": per_term, "new_ids": new_ids}
+                new_papers.append({"id": paper_id, "title": record.get("title", "")})
+    return {"per_term": per_term, "new_papers": new_papers}

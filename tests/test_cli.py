@@ -68,7 +68,7 @@ class StubOpenbrain:
 
     def store_papers(self, papers):
         return {"stored": len(papers), "deduped": 0,
-                "results": [{"id": p["doi"]} for p in papers]}
+                "results": [{"id": p["doi"], "title": p["title"]} for p in papers]}
 
 
 def test_collect_uses_injected_openbrain_and_saves(tmp_path):
