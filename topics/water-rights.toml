@@ -1,0 +1,38 @@
+name = "water rights"
+search_terms = [
+    "water rights prior appropriation forfeiture",
+]
+core_paper_ids = [
+    "e261bf9d-2110-464b-b563-aef19b69e22c",
+    "76ec7343-39b1-4f44-9f22-cd418c30ef44",
+    "cbac59eb-3216-44d7-b406-6473caad3938",
+    "60587fb6-20aa-47f4-9b60-18e37118b3d0",
+    "829aa807-6511-4f8e-8eb1-8a3a3b29d137",
+    "81d6b3c1-5768-4c0b-8048-c8d89f7e7334",
+    "8b32e7ca-b1b9-4b0d-8bca-45564edded51",
+    "68857b71-a7ab-49c9-a109-96ce484173e6",
+    "c9896225-d7d2-4bc8-9453-96fafc9cac59",
+    "18b3b377-b12c-4387-9cc8-36956504edef",
+]
+collected_paper_ids = [
+    "e261bf9d-2110-464b-b563-aef19b69e22c",
+    "76ec7343-39b1-4f44-9f22-cd418c30ef44",
+    "cbac59eb-3216-44d7-b406-6473caad3938",
+    "60587fb6-20aa-47f4-9b60-18e37118b3d0",
+    "829aa807-6511-4f8e-8eb1-8a3a3b29d137",
+    "81d6b3c1-5768-4c0b-8048-c8d89f7e7334",
+    "8b32e7ca-b1b9-4b0d-8bca-45564edded51",
+    "68857b71-a7ab-49c9-a109-96ce484173e6",
+    "c9896225-d7d2-4bc8-9453-96fafc9cac59",
+    "18b3b377-b12c-4387-9cc8-36956504edef",
+    "36fc826a-f902-45fc-a255-0e6fbd6aac36",
+    "3773f8c2-73f8-4d47-878f-226efbc27b89",
+    "cf23d680-fda5-46ec-a88f-4c584f3e60cd",
+    "7c2f056f-b1fe-4d14-abaa-4896196700ae",
+    "b60b860e-f132-40d4-9f71-70214006537b",
+    "f7435539-d42f-4a8a-84b8-f972b12bdba0",
+    "241b6c58-6015-46dd-a74b-6640c867e4c4",
+]
+expanded_paper_ids = []
+
+[citation_distance]

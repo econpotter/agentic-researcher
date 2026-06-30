@@ -6,11 +6,8 @@ is the single seam between the deterministic driver and openbrain; unit tests in
 a stand-in with the same methods, so the live transport is exercised only in an
 integration smoke against the deployed server.
 
-Requires these openbrain MCP tools (find_papers exists today; fetch_papers and
-store_papers split the old combined search-and-store tool in the "external-driver
-primitives" lockstep — its server-side lexical recall gate now lives driver-side —
-and a host redeploy adds the rest):
-  fetch_papers, store_papers, get_citations, score_relevance, find_papers
+Requires these openbrain MCP tools:
+  find_papers, fetch_papers, store_papers, get_citations, score_relevance
 """
 
 from __future__ import annotations
@@ -27,44 +24,64 @@ class Openbrain:
         self._token = token
         self._ca_cert = ca_cert
 
-    def _call(self, tool: str, args: dict) -> object:
+    def _call(self, tool: str, args: dict, timeout: float | None = None) -> object:
         async def go() -> object:
             from fastmcp import Client  # imported lazily so tests need no live server
 
             client = Client(self._url, auth=self._token, verify=self._ca_cert or True)
             async with client:
-                result = await client.call_tool(tool, args)
-                # openbrain tools vary: some return structured data, others a JSON
-                # string (json.dumps). Normalize to the parsed object. Falls back to
-                # the first text-content block when .data is empty.
+                call = client.call_tool(tool, args)
+                # Bound the round-trip: a stalled server read once hung the client
+                # for hours (no default timeout on the transport).
+                result = await (asyncio.wait_for(call, timeout) if timeout else call)
+                # openbrain tools vary: some return structured data, some a JSON
+                # string (json.dumps), some plain prose (e.g. fetch_papers' batch
+                # summary). Normalize: parse JSON when it parses, otherwise hand
+                # back the raw string. Falls back to the first text-content block
+                # when .data is empty.
                 data = result.data
                 if data is None and result.content:
                     data = getattr(result.content[0], "text", None)
                 if isinstance(data, str):
-                    data = json.loads(data)
+                    try:
+                        data = json.loads(data)
+                    except json.JSONDecodeError:
+                        pass  # plain-text tool result; return as-is
                 return data
 
         return asyncio.run(go())
 
-    def fetch_papers(
+    def find_papers(
         self,
-        topic: str,
         *,
-        since: int | None = None,
-        limit: int = 50,
-        store: bool = False,
-    ) -> list[dict]:
-        args: dict = {"topic": topic, "limit": limit, "store": store}
-        if since is not None:
-            args["since"] = since
-        result = self._call("fetch_papers", args)
-        assert isinstance(result, dict)
-        return [dict(c) for c in result.get("candidates", [])]
-
-    def store_papers(self, papers: list[dict]) -> dict:
-        result = self._call("store_papers", {"papers": papers})
+        text: str | None = None,
+        ids: str | None = None,
+        limit: int = 10,
+        threshold: float = 0.4,
+    ) -> dict:
+        """Topical/semantic search over the library. Anchor on `text` (a topic
+        query) or `ids` (comma-separated library ids → similar papers). Returns
+        the tool's dict: `anchors`, `ids` (rank-ordered library ids), `results`."""
+        args: dict = {"limit": limit, "threshold": threshold}
+        if text is not None:
+            args["text"] = text
+        if ids is not None:
+            args["ids"] = ids
+        result = self._call("find_papers", args)
         assert isinstance(result, dict)
         return result
+
+    def fetch_candidates(self, topic: str, *, sources: str | None = None) -> list[dict]:
+        """Discovery (topic mode, store=False): fan out across external sources and
+        return ranked candidate metadata records (title/doi/authors/year/abstract),
+        storing nothing. The driver gates these against the topic's core papers and
+        stores only the keepers via `store_papers`."""
+        args: dict = {"topic": topic, "store": False}
+        if sources is not None:
+            args["sources"] = sources
+        result = self._call("fetch_papers", args)
+        assert isinstance(result, dict)
+        return list(result.get("candidates", []))
 
     def get_citations(self, paper_id: str) -> list[dict]:
         result = self._call("get_citations", {"paper_id": paper_id})
@@ -78,7 +95,32 @@ class Openbrain:
         assert isinstance(result, dict)
         return [float(x) for x in result["scores"]]
 
-    def find_papers(self, text: str, limit: int) -> list[str]:
-        result = self._call("find_papers", {"text": text, "limit": limit})
+    def fetch_papers(
+        self,
+        identifiers: list[str],
+        *,
+        sources: str | None = None,
+        force: bool = False,
+        timeout: float | None = None,
+    ) -> dict:
+        """Known-item batch lookup: fetch metadata+abstract for one or more
+        DOIs/arXiv IDs/titles from external sources and store them in the library.
+        Returns the tool's prose batch summary wrapped as a dict. Dedupes by DOI
+        server-side, so re-runs are safe. `timeout` bounds the round-trip
+        (seconds); a stalled batch raises asyncio.TimeoutError."""
+        args: dict = {"identifiers": list(identifiers), "force": force}
+        if sources is not None:
+            args["sources"] = sources
+        result = self._call("fetch_papers", args, timeout=timeout)
+        # fetch_papers returns a prose batch summary; normalize to a dict either way.
+        if isinstance(result, str):
+            return {"result": result}
         assert isinstance(result, dict)
-        return [str(x) for x in result["ids"]]
+        return result
+
+    def store_papers(self, papers: list[dict]) -> dict:
+        """Store chosen paper metadata dicts into the library (crossref enrich,
+        venue canon, embed abstract). Returns {stored, deduped, results}."""
+        result = self._call("store_papers", {"papers": list(papers)})
+        assert isinstance(result, dict)
+        return result

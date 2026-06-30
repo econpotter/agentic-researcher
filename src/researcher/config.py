@@ -11,7 +11,6 @@ import yaml
 
 _DEFAULTS: dict = {
     "citation_expansion": False,
-    "min_overlap": 2,  # collect's driver-side lexical recall gate (was server-side)
     "relevance_radius": 0.40,
     "max_citation_distance": 2,
     "max_papers_per_run": 200,
@@ -27,7 +26,6 @@ TOKEN_ENV = "OPENBRAIN_MCP_TOKEN"
 @dataclass
 class Config:
     citation_expansion: bool
-    min_overlap: int
     relevance_radius: float
     max_citation_distance: int
     max_papers_per_run: int

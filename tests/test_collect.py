@@ -2,72 +2,61 @@ from researcher.collect import collect_for_topic
 from researcher.topics import Topic
 
 
-def _cand(pid, text):
-    return {"id": pid, "title": text, "abstract": ""}
+def _cand(name):
+    """A discovery candidate as fetch_papers(store=False) returns it: bibliographic
+    metadata + abstract, no library id yet (store_papers mints that)."""
+    return {"doi": f"d-{name}", "title": name, "abstract": f"abstract of {name}"}
 
 
 class StubOpenbrain:
-    def __init__(self, by_term):
-        self.by_term = by_term
-        self.fetched = []
+    """Driver-side gate stub: discovery returns candidates, relevance returns a
+    score keyed by candidate title, store mints id == doi."""
+
+    def __init__(self, by_term, scores):
+        self.by_term = by_term  # term -> [candidate dict]
+        self.scores = scores  # title -> similarity
+        self.discovered = []
         self.stored = []
 
-    def fetch_papers(self, topic, *, since=None, limit=50, store=False):
-        self.fetched.append((topic, since, limit, store))
+    def fetch_candidates(self, topic, *, sources=None):
+        self.discovered.append(topic)
         return self.by_term[topic]
 
+    def score_relevance(self, core_paper_ids, texts):
+        # text is "<title> abstract of <title>"; first token is the title key
+        return [self.scores[t.split()[0]] for t in texts]
+
     def store_papers(self, papers):
-        ids = [p["id"] for p in papers]
-        self.stored.append(ids)
-        return {"stored_ids": ids}
+        self.stored.extend(papers)
+        return {"stored": len(papers), "deduped": 0,
+                "results": [{"id": p["doi"], "deduped": False} for p in papers]}
 
 
-def test_collect_gates_dedups_and_records():
-    topic = Topic(
-        name="T",
-        search_terms=["water rights", "prior appropriation"],
-        collected_paper_ids=["W1"],
-    )
+def test_collect_gates_by_radius_then_stores_and_dedups():
+    topic = Topic(name="T", search_terms=["a", "b"], core_paper_ids=["C1"],
+                  collected_paper_ids=["C1"])
     ob = StubOpenbrain(
-        {
-            "water rights": [
-                _cand("W1", "water rights doctrine"),  # overlap 2 -> kept
-                _cand("W2", "surface water rights"),  # overlap 2 -> kept
-                _cand("WX", "unrelated subject"),  # overlap 0 -> gated out
-            ],
-            "prior appropriation": [
-                _cand("W2", "prior appropriation rule"),  # overlap 2 -> kept (dup)
-                _cand("W3", "prior appropriation west"),  # overlap 2 -> kept
-            ],
-        }
+        by_term={"a": [_cand("p1"), _cand("p2")], "b": [_cand("p2"), _cand("p3")]},
+        scores={"p1": 0.9, "p2": 0.5, "p3": 0.1},  # radius 0.4 -> p3 dropped
     )
-    summary = collect_for_topic(topic, ob, since=2010, limit=5, min_overlap=2)
+    summary = collect_for_topic(topic, ob, radius=0.4)
 
-    assert topic.collected_paper_ids == ["W1", "W2", "W3"]  # deduped, order kept
-    assert ob.stored == [["W1", "W2"], ["W2", "W3"]]  # WX dropped by the gate
-    assert summary["per_term"] == {"water rights": 2, "prior appropriation": 2}
-    assert summary["new_ids"] == ["W2", "W3"]
-    assert ob.fetched == [
-        ("water rights", 2010, 5, False),
-        ("prior appropriation", 2010, 5, False),
-    ]
+    assert ob.discovered == ["a", "b"]
+    assert summary["per_term"] == {"a": 2, "b": 1}  # b: only p2 clears radius
+    assert summary["new_ids"] == ["d-p1", "d-p2"]  # p2 deduped across terms
+    assert topic.collected_paper_ids == ["C1", "d-p1", "d-p2"]
 
 
 def test_collect_no_terms_is_noop():
-    topic = Topic(name="T", search_terms=[])
-    summary = collect_for_topic(topic, StubOpenbrain({}))
+    topic = Topic(name="T", search_terms=[], core_paper_ids=["C1"])
+    summary = collect_for_topic(topic, StubOpenbrain({}, {}), radius=0.4)
     assert summary["per_term"] == {} and summary["new_ids"] == []
 
 
-def test_collect_without_stored_ids_degrades_gracefully():
-    class NoIds:
-        def fetch_papers(self, topic, *, since=None, limit=50, store=False):
-            return [{"id": "W1", "title": "a b", "abstract": ""}]
-
-        def store_papers(self, papers):
-            return {"stored": len(papers)}  # older server: no stored_ids
-
-    topic = Topic(name="T", search_terms=["a b"])
-    summary = collect_for_topic(topic, NoIds(), min_overlap=2)
-    assert topic.collected_paper_ids == []
-    assert summary["per_term"] == {"a b": 0} and summary["new_ids"] == []
+def test_collect_requires_core_for_gate():
+    topic = Topic(name="T", search_terms=["a"])  # no core papers
+    try:
+        collect_for_topic(topic, StubOpenbrain({"a": [_cand("p1")]}, {"p1": 0.9}), radius=0.4)
+    except ValueError:
+        return
+    raise AssertionError("collect must refuse to gate without core papers")
