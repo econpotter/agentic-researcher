@@ -10,7 +10,7 @@ Requires these openbrain MCP tools (find_papers exists today; fetch_papers and
 store_papers split the old combined search-and-store tool in the "external-driver
 primitives" lockstep — its server-side lexical recall gate now lives driver-side —
 and a host redeploy adds the rest):
-  fetch_papers, store_papers, get_citations, score_relevance, store_paper, find_papers
+  fetch_papers, store_papers, get_citations, score_relevance, find_papers
 """
 
 from __future__ import annotations
@@ -77,11 +77,6 @@ class Openbrain:
         )
         assert isinstance(result, dict)
         return [float(x) for x in result["scores"]]
-
-    def store_paper(self, paper: dict) -> dict:
-        result = self._call("store_paper", {"paper": paper})
-        assert isinstance(result, dict)
-        return result
 
     def find_papers(self, text: str, limit: int) -> list[str]:
         result = self._call("find_papers", {"text": text, "limit": limit})

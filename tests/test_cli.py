@@ -71,9 +71,6 @@ class StubOpenbrain:
     def score_relevance(self, core_paper_ids, texts):
         return []
 
-    def store_paper(self, paper):
-        return {"id": paper["id"]}
-
 
 def test_collect_uses_injected_openbrain_and_saves(tmp_path):
     td = str(tmp_path)
