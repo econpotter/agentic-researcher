@@ -53,35 +53,40 @@ def _write_cfg(tmp_path, expansion: bool):
 
 
 class StubOpenbrain:
-    def fetch_papers(self, topic, *, since=None, limit=50, store=False):
-        return [
-            {"id": "W1", "title": topic, "abstract": ""},
-            {"id": "W2", "title": topic, "abstract": ""},
-        ]
+    def fetch_candidates(self, topic, *, sources=None):
+        return [{"doi": "W1", "title": "t1", "abstract": ""},
+                {"doi": "W2", "title": "t2", "abstract": ""}]
 
-    def store_papers(self, papers):
-        return {"stored_ids": [p["id"] for p in papers]}
-
-    def find_papers(self, text, limit):
-        return ["L1", "L2"]
+    def find_papers(self, *, text=None, ids=None, limit=10, threshold=0.4):
+        return {"anchors": [], "ids": ["L1", "L2"], "results": []}
 
     def get_citations(self, paper_id):
         return []
 
     def score_relevance(self, core_paper_ids, texts):
-        return []
+        return [0.9 for _ in texts]  # all clear the radius
+
+    def store_papers(self, papers):
+        return {"stored": len(papers), "deduped": 0,
+                "results": [{"id": p["doi"]} for p in papers]}
 
 
 def test_collect_uses_injected_openbrain_and_saves(tmp_path):
     td = str(tmp_path)
-    main(["--topics-dir", td, "topic", "create", "T", "--term", "water rights"])
+    # create-from-library seeds the core papers the collect gate needs
+    main(
+        ["--topics-dir", td, "topic", "create-from-library", "T", "--query", "q"],
+        openbrain=StubOpenbrain(),
+        config_path=_write_cfg(tmp_path, False),
+    )
+    main(["--topics-dir", td, "term", "add", "T", "water rights"])
     rc = main(
         ["--topics-dir", td, "collect", "T"],
         openbrain=StubOpenbrain(),
         config_path=_write_cfg(tmp_path, False),
     )
     assert rc == 0
-    assert load_topic(Path(td) / "t.toml").collected_paper_ids == ["W1", "W2"]
+    assert load_topic(Path(td) / "t.toml").collected_paper_ids == ["L1", "L2", "W1", "W2"]
 
 
 def test_create_from_library_seeds_core(tmp_path):

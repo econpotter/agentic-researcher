@@ -28,9 +28,10 @@ class StubOpenbrain:
         return [self.SCORE[i] for i in ids]
 
     def store_papers(self, papers):
-        ids = [p["id"] for p in papers]
-        self.stored.extend(ids)
-        return {"stored_ids": ids}
+        for paper in papers:
+            self.stored.append(paper["id"])
+        return {"stored": len(papers), "deduped": 0,
+                "results": [{"id": p["id"], "deduped": False} for p in papers]}
 
 
 def test_expand_keeps_on_topic_outward_respects_distance():

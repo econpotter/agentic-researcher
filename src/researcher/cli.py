@@ -5,7 +5,7 @@
   researcher topic list | show <name>
   researcher term add|remove <name> <term>
   researcher core add|remove|promote <name> <paper_id>
-  researcher collect <name> [--since N] [--limit N]
+  researcher collect <name>
   researcher expand <name>
 """
 
@@ -65,8 +65,6 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_collect = sub.add_parser("collect")
     p_collect.add_argument("name")
-    p_collect.add_argument("--since", type=int, default=None)
-    p_collect.add_argument("--limit", type=int, default=50)
 
     p_expand = sub.add_parser("expand")
     p_expand.add_argument("name")
@@ -91,7 +89,7 @@ def main(
         elif args.action == "create-from-library":
             cfg = load_config(Path(cfg_path))
             ob = openbrain or _connect(cfg)
-            ids = ob.find_papers(args.query, cfg.core_bootstrap_count)
+            ids = ob.find_papers(text=args.query, limit=cfg.core_bootstrap_count)["ids"]
             topic = T.Topic(
                 name=args.name,
                 core_paper_ids=list(ids),
@@ -130,11 +128,7 @@ def main(
         cfg = load_config(Path(cfg_path))
         topic, d = _load(td, args.name)
         summary = collect_for_topic(
-            topic,
-            openbrain or _connect(cfg),
-            since=args.since,
-            limit=args.limit,
-            min_overlap=cfg.min_overlap,
+            topic, openbrain or _connect(cfg), radius=cfg.relevance_radius
         )
         T.save_topic(topic, d)
         print(summary)
