@@ -24,6 +24,7 @@ class StubOpenbrain:
 
     def score_relevance(self, core_paper_ids, texts):
         # text is "<title> abstract of <title>"; first token is the title key
+        self.scored_texts = list(texts)
         return [self.scores[t.split()[0]] for t in texts]
 
     def store_papers(self, papers):
@@ -45,6 +46,18 @@ def test_collect_gates_by_radius_then_stores_and_dedups():
     assert summary["per_term"] == {"a": 2, "b": 1}  # b: only p2 clears radius
     assert summary["new_ids"] == ["d-p1", "d-p2"]  # p2 deduped across terms
     assert topic.collected_paper_ids == ["C1", "d-p1", "d-p2"]
+
+
+def test_collect_null_abstract_not_stringified():
+    # A candidate with a null abstract must score on its title alone, never the
+    # literal "None" (fetch_papers returns abstract: null for some records).
+    topic = Topic(name="T", search_terms=["a"], core_paper_ids=["C1"])
+    ob = StubOpenbrain(
+        by_term={"a": [{"doi": "d-p1", "title": "p1", "abstract": None}]},
+        scores={"p1": 0.9},
+    )
+    collect_for_topic(topic, ob, radius=0.4)
+    assert ob.scored_texts == ["p1"]
 
 
 def test_collect_no_terms_is_noop():
