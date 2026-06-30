@@ -53,8 +53,14 @@ def _write_cfg(tmp_path, expansion: bool):
 
 
 class StubOpenbrain:
-    def acquire(self, query, *, since=None, limit=50):
-        return {"stored": 2, "stored_ids": ["W1", "W2"]}
+    def fetch_papers(self, topic, *, since=None, limit=50, store=False):
+        return [
+            {"id": "W1", "title": topic, "abstract": ""},
+            {"id": "W2", "title": topic, "abstract": ""},
+        ]
+
+    def store_papers(self, papers):
+        return {"stored_ids": [p["id"] for p in papers]}
 
     def find_papers(self, text, limit):
         return ["L1", "L2"]
@@ -71,7 +77,7 @@ class StubOpenbrain:
 
 def test_collect_uses_injected_openbrain_and_saves(tmp_path):
     td = str(tmp_path)
-    main(["--topics-dir", td, "topic", "create", "T", "--term", "a"])
+    main(["--topics-dir", td, "topic", "create", "T", "--term", "water rights"])
     rc = main(
         ["--topics-dir", td, "collect", "T"],
         openbrain=StubOpenbrain(),

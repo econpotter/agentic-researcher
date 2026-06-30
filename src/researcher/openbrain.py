@@ -6,9 +6,11 @@ is the single seam between the deterministic driver and openbrain; unit tests in
 a stand-in with the same methods, so the live transport is exercised only in an
 integration smoke against the deployed server.
 
-Requires these openbrain MCP tools (acquire/find_papers exist today; the rest are
-added by the openbrain "external-driver primitives" issue and a host redeploy):
-  acquire, get_citations, score_relevance, store_paper, find_papers
+Requires these openbrain MCP tools (find_papers exists today; fetch_papers and
+store_papers split the old combined search-and-store tool in the "external-driver
+primitives" lockstep — its server-side lexical recall gate now lives driver-side —
+and a host redeploy adds the rest):
+  fetch_papers, store_papers, get_citations, score_relevance, store_paper, find_papers
 """
 
 from __future__ import annotations
@@ -44,17 +46,23 @@ class Openbrain:
 
         return asyncio.run(go())
 
-    def acquire(
+    def fetch_papers(
         self,
-        query: str,
+        topic: str,
         *,
         since: int | None = None,
         limit: int = 50,
-    ) -> dict:
-        args: dict = {"query": query, "limit": limit}
+        store: bool = False,
+    ) -> list[dict]:
+        args: dict = {"topic": topic, "limit": limit, "store": store}
         if since is not None:
             args["since"] = since
-        result = self._call("acquire", args)
+        result = self._call("fetch_papers", args)
+        assert isinstance(result, dict)
+        return [dict(c) for c in result.get("candidates", [])]
+
+    def store_papers(self, papers: list[dict]) -> dict:
+        result = self._call("store_papers", {"papers": papers})
         assert isinstance(result, dict)
         return result
 
