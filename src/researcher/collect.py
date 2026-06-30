@@ -25,7 +25,7 @@ def collect_for_topic(topic: Topic, openbrain: Openbrain, *, radius: float) -> d
     new_ids: list[str] = []
     for term in topic.search_terms:
         candidates = openbrain.fetch_candidates(term)
-        texts = [f"{c.get('title', '')} {c.get('abstract', '')}".strip() for c in candidates]
+        texts = [f"{c.get('title') or ''} {c.get('abstract') or ''}".strip() for c in candidates]
         scores = openbrain.score_relevance(topic.core_paper_ids, texts)
         kept = [c for c, score in zip(candidates, scores) if score >= radius]
         per_term[term] = len(kept)
