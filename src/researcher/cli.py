@@ -131,7 +131,11 @@ def main(
             topic, openbrain or _connect(cfg), radius=cfg.relevance_radius
         )
         T.save_topic(topic, d)
-        print(summary)
+        for term, kept in summary["per_term"].items():
+            print(f"  {term!r}: {kept} kept")
+        print(f"  {len(summary['new_papers'])} new:")
+        for paper in summary["new_papers"]:
+            print(f"    {paper['id']}  {paper['title']}")
         return 0
 
     if args.group == "expand":

@@ -30,7 +30,8 @@ class StubOpenbrain:
     def store_papers(self, papers):
         self.stored.extend(papers)
         return {"stored": len(papers), "deduped": 0,
-                "results": [{"id": p["doi"], "deduped": False} for p in papers]}
+                "results": [{"id": p["doi"], "title": p["title"], "deduped": False}
+                            for p in papers]}
 
 
 def test_collect_gates_by_radius_then_stores_and_dedups():
@@ -44,7 +45,10 @@ def test_collect_gates_by_radius_then_stores_and_dedups():
 
     assert ob.discovered == ["a", "b"]
     assert summary["per_term"] == {"a": 2, "b": 1}  # b: only p2 clears radius
-    assert summary["new_ids"] == ["d-p1", "d-p2"]  # p2 deduped across terms
+    assert summary["new_papers"] == [  # p2 deduped across terms; titles surfaced
+        {"id": "d-p1", "title": "p1"},
+        {"id": "d-p2", "title": "p2"},
+    ]
     assert topic.collected_paper_ids == ["C1", "d-p1", "d-p2"]
 
 
@@ -63,7 +67,7 @@ def test_collect_null_abstract_not_stringified():
 def test_collect_no_terms_is_noop():
     topic = Topic(name="T", search_terms=[], core_paper_ids=["C1"])
     summary = collect_for_topic(topic, StubOpenbrain({}, {}), radius=0.4)
-    assert summary["per_term"] == {} and summary["new_ids"] == []
+    assert summary["per_term"] == {} and summary["new_papers"] == []
 
 
 def test_collect_requires_core_for_gate():
