@@ -50,7 +50,7 @@ def expand_by_citations(
                 score, distance + 1, radius=radius, max_distance=max_citation_distance
             ):
                 continue
-            openbrain.store_paper(candidate)
+            openbrain.store_papers([candidate])
             known.add(candidate_id)
             topic.collected_paper_ids.append(candidate_id)
             topic.citation_distance[candidate_id] = distance + 1

@@ -130,7 +130,11 @@ def main(
         cfg = load_config(Path(cfg_path))
         topic, d = _load(td, args.name)
         summary = collect_for_topic(
-            topic, openbrain or _connect(cfg), since=args.since, limit=args.limit
+            topic,
+            openbrain or _connect(cfg),
+            since=args.since,
+            limit=args.limit,
+            min_overlap=cfg.min_overlap,
         )
         T.save_topic(topic, d)
         print(summary)
