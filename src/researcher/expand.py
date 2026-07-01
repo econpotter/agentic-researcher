@@ -12,16 +12,33 @@ a uuid -> its DOI -> the OpenAlex work)."""
 
 from __future__ import annotations
 
+import re
 from collections import deque
 
 from .openbrain import Openbrain
 from .relevance import is_relevant
 from .topics import Topic
 
+_WORD = re.compile(r"[a-z0-9]+")
+
 
 def _key(candidate: dict) -> str:
-    """Stable identity for a not-yet-stored neighbor (it has no library id)."""
-    return (candidate.get("doi") or candidate.get("title") or "").strip().lower()
+    """Stable identity for a not-yet-stored neighbor (it has no library id). Uses
+    the DOI when present, else a bibtex-slug-style key (first-author surname +
+    year + leading title words) so DOI-less neighbors still dedup reliably."""
+    doi = (candidate.get("doi") or "").strip().lower()
+    if doi:
+        return "doi:" + doi
+    authors = candidate.get("authors") or []
+    surname = ""
+    if authors and authors[0].strip():
+        first = authors[0].strip()
+        surname = first.split(",")[0] if "," in first else first.split()[-1]
+    surname = "".join(_WORD.findall(surname.lower()))
+    year = str(candidate.get("year") or "")
+    words = "-".join(_WORD.findall((candidate.get("title") or "").lower())[:6])
+    slug = ":".join(p for p in (surname, year, words) if p)
+    return "slug:" + slug if slug else ""
 
 
 def expand_by_citations(
