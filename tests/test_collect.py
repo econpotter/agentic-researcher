@@ -1,3 +1,5 @@
+import pytest
+
 from researcher.collect import collect_for_topic
 from researcher.topics import Topic
 
@@ -62,6 +64,16 @@ def test_collect_null_abstract_not_stringified():
     )
     collect_for_topic(topic, ob, radius=0.4)
     assert ob.scored_texts == ["p1"]
+
+
+def test_collect_raises_on_score_candidate_mismatch():
+    # A backend that returns the wrong number of scores must fail loud before the
+    # zip silently truncates candidates to scores.
+    topic = Topic(name="T", search_terms=["a"], core_paper_ids=["C1"])
+    ob = StubOpenbrain(by_term={"a": [_cand("p1"), _cand("p2")]}, scores={})
+    ob.score_relevance = lambda core, texts: [0.9]  # one score, two candidates
+    with pytest.raises(ValueError, match="1 scores for 2 candidates"):
+        collect_for_topic(topic, ob, radius=0.4)
 
 
 def test_collect_no_terms_is_noop():

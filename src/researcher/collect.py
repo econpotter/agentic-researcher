@@ -27,6 +27,11 @@ def collect_for_topic(topic: Topic, openbrain: Openbrain, *, radius: float) -> d
         candidates = openbrain.fetch_candidates(term)
         texts = [f"{c.get('title') or ''} {c.get('abstract') or ''}".strip() for c in candidates]
         scores = openbrain.score_relevance(topic.core_paper_ids, texts)
+        if len(scores) != len(candidates):
+            raise ValueError(
+                f"score_relevance returned {len(scores)} scores for "
+                f"{len(candidates)} candidates on term {term!r}"
+            )
         kept = [c for c, score in zip(candidates, scores) if score >= radius]
         per_term[term] = len(kept)
         if not kept:

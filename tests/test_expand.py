@@ -62,6 +62,16 @@ def test_expand_respects_budget():
     assert summary["added"] == 1 and summary["stopped"] == "budget"
 
 
+def test_expand_raises_on_score_candidate_mismatch():
+    topic = Topic(name="T", core_paper_ids=["C0"], collected_paper_ids=["lib1"])
+    ob = StubOpenbrain()
+    ob.score_relevance = lambda core, texts: [0.8]  # one score, two fresh neighbors
+    with pytest.raises(ValueError, match="1 scores for 2 candidates"):
+        expand_by_citations(
+            topic, ob, radius=0.40, max_citation_distance=2, max_papers_per_run=100
+        )
+
+
 def test_expand_requires_core_papers():
     with pytest.raises(ValueError):
         expand_by_citations(
