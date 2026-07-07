@@ -83,6 +83,11 @@ def expand_by_citations(
             f"{c.get('title', '')} {c.get('abstract', '')}".strip() for c in fresh
         ]
         scores = openbrain.score_relevance(topic.core_paper_ids, texts)
+        if len(scores) != len(fresh):
+            raise ValueError(
+                f"score_relevance returned {len(scores)} scores for "
+                f"{len(fresh)} candidates walking {paper_id!r}"
+            )
         for candidate, score in zip(fresh, scores):
             if not is_relevant(
                 score, distance + 1, radius=radius, max_distance=max_citation_distance

@@ -16,6 +16,34 @@ import asyncio
 import json
 
 
+def _normalize_result(result: object) -> object:
+    """openbrain tools vary: some return structured data, some a JSON string
+    (json.dumps), some plain prose (e.g. fetch_papers' batch summary). Parse JSON
+    when it parses, otherwise hand back the raw string. Falls back to the first
+    text-content block when `.data` is empty."""
+    data = getattr(result, "data", None)
+    content = getattr(result, "content", None)
+    if data is None and content:
+        data = getattr(content[0], "text", None)
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            pass  # plain-text tool result; return as-is
+    return data
+
+
+def _expect_dict(result: object, tool: str) -> dict:
+    """Boundary check for a tool that must return a structured dict. Raises with
+    context (kept as an explicit exception, not `assert`, so it still fires under
+    `python -O`)."""
+    if not isinstance(result, dict):
+        raise TypeError(
+            f"openbrain tool {tool!r} returned {type(result).__name__}, expected dict"
+        )
+    return result
+
+
 class Openbrain:
     def __init__(
         self, mcp_url: str, token: str | None = None, ca_cert: str | None = None
@@ -34,20 +62,7 @@ class Openbrain:
                 # Bound the round-trip: a stalled server read once hung the client
                 # for hours (no default timeout on the transport).
                 result = await (asyncio.wait_for(call, timeout) if timeout else call)
-                # openbrain tools vary: some return structured data, some a JSON
-                # string (json.dumps), some plain prose (e.g. fetch_papers' batch
-                # summary). Normalize: parse JSON when it parses, otherwise hand
-                # back the raw string. Falls back to the first text-content block
-                # when .data is empty.
-                data = result.data
-                if data is None and result.content:
-                    data = getattr(result.content[0], "text", None)
-                if isinstance(data, str):
-                    try:
-                        data = json.loads(data)
-                    except json.JSONDecodeError:
-                        pass  # plain-text tool result; return as-is
-                return data
+                return _normalize_result(result)
 
         return asyncio.run(go())
 
@@ -67,9 +82,7 @@ class Openbrain:
             args["text"] = text
         if ids is not None:
             args["ids"] = ids
-        result = self._call("find_papers", args)
-        assert isinstance(result, dict)
-        return result
+        return _expect_dict(self._call("find_papers", args), "find_papers")
 
     def fetch_candidates(self, topic: str, *, sources: str | None = None) -> list[dict]:
         """Discovery (topic mode, store=False): fan out across external sources and
@@ -79,21 +92,30 @@ class Openbrain:
         args: dict = {"topic": topic, "store": False}
         if sources is not None:
             args["sources"] = sources
-        result = self._call("fetch_papers", args)
-        assert isinstance(result, dict)
+        result = _expect_dict(self._call("fetch_papers", args), "fetch_papers")
         return list(result.get("candidates", []))
 
     def get_citations(self, paper_id: str) -> list[dict]:
-        result = self._call("get_citations", {"paper_id": paper_id})
-        assert isinstance(result, dict)
+        result = _expect_dict(
+            self._call("get_citations", {"paper_id": paper_id}), "get_citations"
+        )
         return list(result.get("citations", []))
 
     def score_relevance(self, core_paper_ids: list[str], texts: list[str]) -> list[float]:
-        result = self._call(
-            "score_relevance", {"core_paper_ids": core_paper_ids, "texts": texts}
+        result = _expect_dict(
+            self._call(
+                "score_relevance", {"core_paper_ids": core_paper_ids, "texts": texts}
+            ),
+            "score_relevance",
         )
-        assert isinstance(result, dict)
-        return [float(x) for x in result["scores"]]
+        if "scores" not in result:
+            raise ValueError("score_relevance result missing 'scores'")
+        scores = result["scores"]
+        if len(scores) != len(texts):
+            raise ValueError(
+                f"score_relevance returned {len(scores)} scores for {len(texts)} texts"
+            )
+        return [float(x) for x in scores]
 
     def fetch_papers(
         self,
@@ -115,12 +137,11 @@ class Openbrain:
         # fetch_papers returns a prose batch summary; normalize to a dict either way.
         if isinstance(result, str):
             return {"result": result}
-        assert isinstance(result, dict)
-        return result
+        return _expect_dict(result, "fetch_papers")
 
     def store_papers(self, papers: list[dict]) -> dict:
         """Store chosen paper metadata dicts into the library (crossref enrich,
         venue canon, embed abstract). Returns {stored, deduped, results}."""
-        result = self._call("store_papers", {"papers": list(papers)})
-        assert isinstance(result, dict)
-        return result
+        return _expect_dict(
+            self._call("store_papers", {"papers": list(papers)}), "store_papers"
+        )
