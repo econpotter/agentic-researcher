@@ -23,7 +23,7 @@ rewrite the README as informative, public-facing documentation.
 ### Task 1: Remove the personal cert path from tracked config
 
 **Files:**
-- Modify: `config.yaml` (line ~12 hardcodes `/home/potterzot/caddy-rhythm.crt`)
+- Modify: `config.yaml` (line ~12 hardcodes a personal absolute cert path under the operator's home directory)
 - Modify: `.env.example` (document the new variable)
 
 - [ ] **Step 1: Find how the cert path is consumed.** `grep -rn "caddy-rhythm\|cert" --include="*.py" --include="*.yaml" .` — identify the config key and the code that reads it.
@@ -38,7 +38,7 @@ comment: local TLS cert path for the private MCP endpoint, unset by default.
 - [ ] **Step 3: Verify.**
 
 ```bash
-grep -rn "/home/potterzot" --include="*.yaml" --include="*.py" . && echo "FIX" || echo "clean"
+grep -rn "/home/" --include="*.yaml" --include="*.py" . && echo "FIX" || echo "clean"
 uv run pytest -q 2>&1 | tail -2
 ```
 
@@ -93,7 +93,7 @@ the repo, state the honest unknown rather than a placeholder.
   - License: MIT.
 
 - [ ] **Step 2: Style check** — no marketing language, no unproven claims,
-matches the operator's style guide. Then: `grep -nE "/home/potterzot|rhythm\.herknet" README.md` → no output.
+matches the operator's style guide. Then: `grep -nE "/home/|rhythm\.herknet" README.md` → no output.
 
 - [ ] **Step 3: Commit** — `git commit -am "docs: public-facing README rewrite"`
 

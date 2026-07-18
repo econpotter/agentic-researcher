@@ -25,6 +25,22 @@ def test_token_from_env(tmp_path, monkeypatch):
     assert c.openbrain_mcp_token == "secret123"
 
 
+def test_ca_cert_from_env_overrides_yaml(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENBRAIN_CA_CERT", "/etc/ssl/my-ca.crt")
+    p = tmp_path / "c.yaml"
+    p.write_text('openbrain_ca_cert: "/from/yaml.crt"\n')
+    c = load_config(p)
+    assert c.openbrain_ca_cert == "/etc/ssl/my-ca.crt"
+
+
+def test_ca_cert_defaults_none_without_env(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENBRAIN_CA_CERT", raising=False)
+    p = tmp_path / "c.yaml"
+    p.write_text("")
+    c = load_config(p)
+    assert c.openbrain_ca_cert is None
+
+
 def test_repo_config_yaml_parses():
     repo_cfg = Path(__file__).resolve().parent.parent / "config.yaml"
     c = load_config(repo_cfg)
