@@ -1,5 +1,5 @@
 # Acquisition/expansion policy + openbrain connection.
-# See docs/superpowers/specs/2026-06-28-agentic-researcher-acquisition-design.md (§4 + Revision).
+# Each key below is documented inline; see README.md for how expansion uses them.
 
 citation_expansion: false        # enable `researcher expand` (follow citations outward)
 relevance_radius: 0.40           # min similarity to a topic's core papers to keep a paper (first knob to tune)
@@ -8,6 +8,7 @@ max_papers_per_run: 200          # hard ceiling on papers added per expand run
 core_bootstrap_count: 10         # core papers seeded when creating a topic from the library
 
 # Hosted openbrain, reached over the SSH tunnel (the local checkout is dev-only).
-openbrain_mcp_url: "https://rhythm.herknet:8443/mcp"   # <-- set to your tunneled MCP endpoint
-openbrain_ca_cert: "/home/potterzot/caddy-rhythm.crt"  # CA cert if MCP uses self-signed TLS (else null)
+openbrain_mcp_url: "https://your-openbrain-host:8443/mcp"   # <-- set to your tunneled MCP endpoint
+openbrain_ca_cert: null   # CA cert path if the MCP uses self-signed TLS; prefer the OPENBRAIN_CA_CERT env var
 # bearer token is read from the OPENBRAIN_MCP_TOKEN environment variable, not this file
+# CA cert path can be supplied via the OPENBRAIN_CA_CERT environment variable (overrides the value above)
