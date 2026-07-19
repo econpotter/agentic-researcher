@@ -1,7 +1,7 @@
 # agentic-researcher
 
-An agentic research assistant for economics literature. It grows and relates a paper
-library on top of **openbrain**: you define named research *topics*, and it collects
+An agentic research assistant. It grows and relates a paper
+library on top of [**openbrain**](https:github.com/econpotter/openbrain) (or any other DB you like with a little plumbing): you define named research *topics*, and it collects
 papers for each topic's search terms and — when you enable it — expands outward along the
 citation graph, keeping only papers relevant to the papers you've marked as defining the
 topic. The result is a curated substrate for later literature reviews and idea generation.
