@@ -10,3 +10,8 @@ lint:
 
 fmt:
     uv run ruff format
+
+check: test lint typecheck
+
+typecheck:
+    uv run mypy src
