@@ -1,6 +1,6 @@
 # Coding standards
 
-Read and apply `~/.config/agents/references/coding-standards.md`.
+Read and apply `~/.config/agentic/references/coding-standards.md`.
 
 ## Lifecycle: alpha
 
